@@ -65,9 +65,6 @@ local function set_chars_to_double_square(chars)
 end
 
 
-local function artist_noop()
-end
-
 local function current_cursor_pos()
     local _, row, _, _ = unpack(vim.fn.getpos("."))
     local col = vim.fn.virtcol(".")
@@ -103,6 +100,62 @@ local function has_value(tabl, value)
     return false
 end
 
+local function is_valid_above(char)
+    return has_value(
+        {
+            CHARS['down_and_right'],
+            CHARS['down_and_left'],
+            CHARS['down_and_horizontal'],
+            CHARS['vertical_and_left'],
+            CHARS['vertical_and_right'],
+            CHARS['vertical'],
+            CHARS['vertical_and_horizontal']
+        }, char
+    )
+end
+
+local function is_valid_below(char)
+    return has_value(
+        {
+            CHARS['up_and_right'],
+            CHARS['up_and_left'],
+            CHARS['up_and_horizontal'],
+            CHARS['vertical_and_left'],
+            CHARS['vertical_and_right'],
+            CHARS['vertical'],
+            CHARS['vertical_and_horizontal'],
+        }, char
+    )
+end
+
+local function is_valid_right(char)
+    return has_value(
+        {
+            CHARS['down_and_left'],
+            CHARS['up_and_left'],
+            CHARS['vertical_and_left'],
+            CHARS['down_and_horizontal'],
+            CHARS['up_and_horizontal'],
+            CHARS['horizontal'],
+            CHARS['vertical_and_horizontal'],
+        }, char
+    )
+end
+
+local function is_valid_left(char)
+    return has_value(
+        {
+            CHARS['down_and_right'],
+            CHARS['up_and_right'],
+            CHARS['vertical_and_right'],
+            CHARS['down_and_horizontal'],
+            CHARS['up_and_horizontal'],
+            CHARS['horizontal'],
+            CHARS['vertical_and_horizontal'],
+        }, char
+    )
+end
+
 local function char_to_insert(row, col, default)
 
     if default == nil then default = "" end
@@ -115,27 +168,27 @@ local function char_to_insert(row, col, default)
     local above =  char_at_pos(row - 1, col)
     local left =  char_at_pos(row, col - 1)
 
-    if has_value(CHARS, below) and has_value(CHARS, above) and has_value(CHARS, right) and has_value(CHARS, left) then
+    if is_valid_above(above) and is_valid_below(below) and is_valid_left(left) and is_valid_right(right) then
         c = CHARS['vertical_and_horizontal']
-    elseif has_value(CHARS, below) and has_value(CHARS, above) and has_value(CHARS, right) then
+    elseif is_valid_below(below) and is_valid_above(above) and is_valid_right(right) then
         c = CHARS['vertical_and_right']
-    elseif has_value(CHARS, below) and has_value(CHARS, above) and has_value(CHARS, left) then
+    elseif is_valid_below(below) and is_valid_above(above) and is_valid_left(left) then
         c = CHARS['vertical_and_left']
-    elseif has_value(CHARS, above) and has_value(CHARS, left) and has_value(CHARS, right) then
+    elseif is_valid_above(above) and is_valid_left(left) and is_valid_right(right) then
         c = CHARS['up_and_horizontal']
-    elseif has_value(CHARS, below) and has_value(CHARS, left) and has_value(CHARS, right) then
+    elseif is_valid_below(below) and is_valid_left(left) and is_valid_right(right) then
         c = CHARS['down_and_horizontal']
-    elseif has_value(CHARS, above) and has_value(CHARS, right) then
+    elseif is_valid_above(above) and is_valid_right(right) then
         c = CHARS['up_and_right']
-    elseif has_value(CHARS, above) and has_value(CHARS, left) then
+    elseif is_valid_above(above) and is_valid_left(left) then
         c = CHARS['up_and_left']
-    elseif has_value(CHARS, below) and has_value(CHARS, right) then
+    elseif is_valid_below(below) and is_valid_right(right) then
         c = CHARS['down_and_right']
-    elseif has_value(CHARS, below) and has_value(CHARS, left) then
+    elseif is_valid_below(below) and is_valid_left(left) then
         c = CHARS['down_and_left']
-    elseif has_value(CHARS, below) and has_value(CHARS, above) then
+    elseif is_valid_below(below) and is_valid_above(above) then
         c = CHARS['vertical']
-    elseif has_value(CHARS, left) and has_value(CHARS, right) then
+    elseif is_valid_left(left) and is_valid_right(right) then
         c = CHARS['horizontal']
     end
 
@@ -143,11 +196,13 @@ local function char_to_insert(row, col, default)
 end
 
 
-local function artist_drag()
+local function artist_freehand_drag()
+
     local row, col = current_cursor_pos()
+
     if col == STATE['last_col'] then
         -- We moved in a column. We need to find out where we came from.
-        vim.cmd("normal! r" .. CHARS["vertical"])
+        vim.cmd("normal! r" .. char_to_insert(row, col, CHARS["vertical"]))
         if col ~= STATE['last_last_col'] then
             -- We took a turn
             -- We need to fix the corner now
@@ -167,7 +222,7 @@ local function artist_drag()
         end
     else
         -- We moved in a row. We need to find out where we came from.
-        vim.cmd("normal! r" .. CHARS["horizontal"])
+        vim.cmd("normal! r" .. char_to_insert(row, col, CHARS["horizontal"]))
         if row ~= STATE['last_last_row'] then
             -- We took a turn
             -- We need to fix the corner now
@@ -194,18 +249,21 @@ local function artist_drag()
 end
 
 
-local function artist_click(char)
-    if char == nil then char = CHARS["horizontal"] end
-    local row, col = current_cursor_pos()
+local function artist_freehand_click(char)
 
     STATE['last_last_row'] = row
     STATE['last_last_col'] = col
     STATE['last_row'] = row
     STATE['last_col'] = col
-    -- vim.cmd("normal! r" .. char)
+
+    local row, col = current_cursor_pos()
+
+    if char == nil then char = char_at_pos(row, col) end
+
+    vim.cmd("normal! r" .. char_to_insert(row, col, char))
 end
 
-local function artist_on()
+local function artist_freehand_on()
     STATE['virtualedit'] = vim.o.virtualedit
     STATE['mousemodel'] = vim.o.mousemodel
     STATE['mouse'] = vim.o.mouse
@@ -213,30 +271,30 @@ local function artist_on()
     vim.cmd 'setl mousemodel=extend'
     vim.cmd 'setl mouse=a'
 
-    vim.cmd "nnoremap <buffer> <silent> <LeftMouse> <LeftMouse>:lua require'artist'.artist_click()<CR>"
-    vim.cmd "nnoremap <buffer> <silent> <LeftDrag> <LeftMouse>:lua require'artist'.artist_drag()<CR>"
+    vim.cmd "nnoremap <buffer> <silent> <LeftClick> <LeftMouse>:lua require'artist'.artist_freehand_click()<CR>"
+    vim.cmd "nnoremap <buffer> <silent> <LeftDrag> <LeftMouse>:lua require'artist'.artist_freehand_drag()<CR>"
 
     print('Artist mode: ON')
 end
 
-local function artist_off()
+local function artist_freehand_off()
     if STATE['virtualedit'] ~= nil then vim.o.virtualedit = STATE['virtualedit'] end
     if STATE['mousemodel'] ~= nil then vim.o.mousemodel = STATE['mousemodel'] end
     if STATE['mouse'] ~= nil then vim.o.mouse= STATE['mouse'] end
 
-    vim.cmd "nunmap <buffer> <LeftMouse>"
+    vim.cmd "nunmap <buffer> <LeftRelease>"
     vim.cmd "nunmap <buffer> <LeftDrag>"
     print('Artist mode: OFF')
 end
 
-local function artist_toggle()
+local function artist_freehand_toggle()
 
-    if STATE['artist_mode'] then
-        STATE['artist_mode'] = false
-        artist_off()
+    if STATE['artist_freehand_mode'] then
+        STATE['artist_freehand_mode'] = false
+        artist_freehand_off()
     else
-        STATE['artist_mode'] = true
-        artist_on()
+        STATE['artist_freehand_mode'] = true
+        artist_freehand_on()
     end
 
 end
@@ -248,6 +306,8 @@ local function artist_use_char_set(char_set_type)
         set_chars_to_light_arc(CHARS)
     elseif char_set_type == 'heavy' then
         set_chars_to_heavy_square(CHARS)
+    elseif char_set_type == 'double' then
+        set_chars_to_double_square(CHARS)
     else
         set_chars_to_light_square(CHARS)
     end
@@ -262,9 +322,9 @@ artist_init()
 return {
     artist_init = artist_init,
     artist_use_char_set = artist_use_char_set,
-    artist_toggle = artist_toggle,
-    artist_on = artist_on,
-    artist_off = artist_off,
-    artist_click = artist_click,
-    artist_drag = artist_drag,
+    artist_freehand_toggle = artist_freehand_toggle,
+    artist_freehand_on = artist_freehand_on,
+    artist_freehand_off = artist_freehand_off,
+    artist_freehand_click = artist_freehand_click,
+    artist_freehand_drag = artist_freehand_drag,
 }

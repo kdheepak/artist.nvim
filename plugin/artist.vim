@@ -7,11 +7,14 @@ set cpoptions&vim
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
-command! ArtistToggle lua require'artist'.artist_toggle()
+command! ArtistFreehandToggle lua require'artist'.artist_freehand_toggle()
 
-command! ArtistOn lua require'artist'.artist_on()
+command! ArtistFreehandOn lua require'artist'.artist_freehand_on()
 
-command! ArtistOff lua require'artist'.artist_off()
+command! ArtistFreehandOff lua require'artist'.artist_freehand_off()
+
+
+nnoremap <silent> <leader>aa :ArtistFreehandToggle<CR>
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""
 
