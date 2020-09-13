@@ -109,11 +109,11 @@ local function char_to_insert(row, col, default)
 
     local c = default
 
-    current = char_at_pos(row, col)
-    below = char_at_pos(row + 1, col)
-    right = char_at_pos(row, col + 1)
-    above =  char_at_pos(row - 1, col)
-    left =  char_at_pos(row, col - 1)
+    local current = char_at_pos(row, col)
+    local below = char_at_pos(row + 1, col)
+    local right = char_at_pos(row, col + 1)
+    local above =  char_at_pos(row - 1, col)
+    local left =  char_at_pos(row, col - 1)
 
     if has_value(CHARS, below) and has_value(CHARS, above) and has_value(CHARS, right) and has_value(CHARS, left) then
         c = CHARS['vertical_and_horizontal']
