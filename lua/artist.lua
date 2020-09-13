@@ -6,19 +6,64 @@ local STATE = {
     artist_mode = false,
 }
 
-local CHARS = {
-    vertical = '│',
-    horizontal = '─',
-    down_and_right = '┌',
-    down_and_left = '┐',
-    up_and_right = '└',
-    up_and_left = '┘',
-}
+local CHARS = {}
 
-local function set_chars_to_light()
-    CHARS['vertical'] = '│'
-    CHARS['horizontal'] = '─'
+local function set_chars_to_light_square(chars)
+    chars['vertical'] = '│'
+    chars['horizontal'] = '─'
+    chars['down_and_right'] = '┌'
+    chars['down_and_left'] = '┐'
+    chars['up_and_right'] = '└'
+    chars['up_and_left'] = '┘'
+    chars['vertical_and_left'] = '┤'
+    chars['vertical_and_right'] = '├'
+    chars['down_and_horizontal'] = '┬'
+    chars['up_and_horizontal'] = '┴'
+    chars['vertical_and_horizontal'] = '┼'
 end
+
+local function set_chars_to_light_arc(chars)
+    chars['vertical'] = '│'
+    chars['horizontal'] = '─'
+    chars['down_and_right'] = '╭'
+    chars['down_and_left'] = '╮'
+    chars['up_and_right'] = '╰'
+    chars['up_and_left'] = '╯'
+    chars['vertical_and_left'] = '┤'
+    chars['vertical_and_right'] = '├'
+    chars['down_and_horizontal'] = '┬'
+    chars['up_and_horizontal'] = '┴'
+    chars['vertical_and_horizontal'] = '┼'
+end
+
+local function set_chars_to_heavy_square(chars)
+    chars['vertical'] = '┃'
+    chars['horizontal'] = '━'
+    chars['down_and_right'] = '┏'
+    chars['down_and_left'] = '┓'
+    chars['up_and_right'] = '┗'
+    chars['up_and_left'] = '┛'
+    chars['vertical_and_left'] = '┫'
+    chars['vertical_and_right'] = '┣'
+    chars['down_and_horizontal'] = '┳'
+    chars['up_and_horizontal'] = '┻'
+    chars['vertical_and_horizontal'] = '╋'
+end
+
+local function set_chars_to_double_square(chars)
+    chars['vertical'] = '║'
+    chars['horizontal'] = '═'
+    chars['down_and_right'] = '╔'
+    chars['down_and_left'] = '╗'
+    chars['up_and_right'] = '╚'
+    chars['up_and_left'] = '╝'
+    chars['vertical_and_left'] = '╣'
+    chars['vertical_and_right'] = '╠'
+    chars['down_and_horizontal'] = '╦'
+    chars['up_and_horizontal'] = '╩'
+    chars['vertical_and_horizontal'] = '╬'
+end
+
 
 local function artist_noop()
 end
@@ -45,53 +90,99 @@ local function char_at_pos(row, col)
     if col == nil then col = vim.fn.virtcol(".") end
     local s = vim.fn.getline(row)
     local char = find_char(s, col)
+    if char == nil then char = '' end
     return char
 end
+
+local function has_value(tabl, value)
+    for _, v in pairs(tabl) do
+        if v == value then
+            return true
+        end
+    end
+    return false
+end
+
+local function char_to_insert(row, col, default)
+
+    if default == nil then default = "" end
+
+    local c = default
+
+    current = char_at_pos(row, col)
+    below = char_at_pos(row + 1, col)
+    right = char_at_pos(row, col + 1)
+    above =  char_at_pos(row - 1, col)
+    left =  char_at_pos(row, col - 1)
+
+    if has_value(CHARS, below) and has_value(CHARS, above) and has_value(CHARS, right) and has_value(CHARS, left) then
+        c = CHARS['vertical_and_horizontal']
+    elseif has_value(CHARS, below) and has_value(CHARS, above) and has_value(CHARS, right) then
+        c = CHARS['vertical_and_right']
+    elseif has_value(CHARS, below) and has_value(CHARS, above) and has_value(CHARS, left) then
+        c = CHARS['vertical_and_left']
+    elseif has_value(CHARS, above) and has_value(CHARS, left) and has_value(CHARS, right) then
+        c = CHARS['up_and_horizontal']
+    elseif has_value(CHARS, below) and has_value(CHARS, left) and has_value(CHARS, right) then
+        c = CHARS['down_and_horizontal']
+    elseif has_value(CHARS, above) and has_value(CHARS, right) then
+        c = CHARS['up_and_right']
+    elseif has_value(CHARS, above) and has_value(CHARS, left) then
+        c = CHARS['up_and_left']
+    elseif has_value(CHARS, below) and has_value(CHARS, right) then
+        c = CHARS['down_and_right']
+    elseif has_value(CHARS, below) and has_value(CHARS, left) then
+        c = CHARS['down_and_left']
+    elseif has_value(CHARS, below) and has_value(CHARS, above) then
+        c = CHARS['vertical']
+    elseif has_value(CHARS, left) and has_value(CHARS, right) then
+        c = CHARS['horizontal']
+    end
+
+    return c
+end
+
 
 local function artist_drag()
     local row, col = current_cursor_pos()
     if col == STATE['last_col'] then
         -- We moved in a column. We need to find out where we came from.
-        if col == STATE['last_last_col'] then
-            -- we are moving in a straight line vertically
-            vim.cmd("normal! r" .. CHARS["vertical"])
-        else
+        vim.cmd("normal! r" .. CHARS["vertical"])
+        if col ~= STATE['last_last_col'] then
             -- We took a turn
             -- We need to fix the corner now
-            if STATE['last_last_col'] > col and STATE['last_row'] < row then
+            if STATE['last_last_col'] == col + 1 and STATE['last_row'] == row - 1 then
                 -- If we came from the right and moved down
-                vim.cmd("normal! kr" .. CHARS["down_and_right"] .. "jr" .. CHARS["vertical"])
-            elseif STATE['last_last_col'] > col and STATE['last_row'] > row then
+                vim.cmd("normal! kr" .. char_to_insert(row - 1, col, CHARS['down_and_right']) .. "jr" .. CHARS["vertical"])
+            elseif STATE['last_last_col'] == col + 1 and STATE['last_row'] == row + 1 then
                 -- If we came from the right and moved up
-                vim.cmd("normal! jr" .. CHARS["up_and_right"] .. "kr" .. CHARS["vertical"])
-            elseif STATE['last_last_col'] < col and STATE['last_row'] < row then
+                vim.cmd("normal! jr" .. char_to_insert(row + 1, col, CHARS['up_and_right']) .. "kr" .. CHARS["vertical"])
+            elseif STATE['last_last_col'] == col - 1 and STATE['last_row'] == row - 1 then
                 -- If we came from the left and moved down
-                vim.cmd("normal! kr" .. CHARS["down_and_left"] .. "jr" .. CHARS["vertical"])
-            elseif STATE['last_last_col'] < col and STATE['last_row'] > row then
+                vim.cmd("normal! kr" .. char_to_insert(row - 1, col, CHARS['down_and_left']) .. "jr" .. CHARS["vertical"])
+            elseif STATE['last_last_col'] == col - 1 and STATE['last_row'] == row + 1 then
                 -- If we came from the left and moved up
-                vim.cmd("normal! jr" .. CHARS["up_and_left"] .. "kr" .. CHARS["vertical"])
+                vim.cmd("normal! jr" .. char_to_insert(row + 1, col, CHARS['up_and_left']) .. "kr" .. CHARS["vertical"])
             end
         end
     else
         -- We moved in a row. We need to find out where we came from.
-        if row == STATE['last_last_row'] then
-            -- we are moving in a straight line horizontally
-            vim.cmd("normal! r" .. CHARS["horizontal"])
-        else
+        vim.cmd("normal! r" .. CHARS["horizontal"])
+        if row ~= STATE['last_last_row'] then
             -- We took a turn
             -- We need to fix the corner now
-            if STATE['last_last_row'] > row and STATE['last_col'] < col then
+            if STATE['last_last_row'] == row + 1 and STATE['last_col'] == col - 1 then
                 -- If we came from the bottom and moved right
-                vim.cmd("normal! hr" .. CHARS["down_and_right"] .. "lr" .. CHARS["horizontal"])
-            elseif STATE['last_last_row'] > row and STATE['last_col'] > col then
+                vim.cmd("normal! hr" .. char_to_insert(row, col - 1, CHARS['down_and_right']) .. "lr" .. CHARS["horizontal"])
+            elseif STATE['last_last_row'] == row + 1 and STATE['last_col'] == col + 1 then
                 -- If we came from the bottom and moved left
-                vim.cmd("normal! lr" .. CHARS["down_and_left"] .. "hr" .. CHARS["horizontal"])
-            elseif STATE['last_last_row'] < row and STATE['last_col'] < col then
+                vim.cmd("normal! lr" .. char_to_insert(row, col + 1, CHARS['down_and_left']) .. "hr" .. CHARS["horizontal"])
+            elseif STATE['last_last_row'] == row - 1 and STATE['last_col'] == col - 1 then
                 -- If we came from the top and moved right
-                vim.cmd("normal! hr" .. CHARS["up_and_right"] .. "lr" .. CHARS["horizontal"])
-            elseif STATE['last_last_row'] < row and STATE['last_col'] > col then
+                vim.cmd("normal! hr" .. char_to_insert(row, col - 1, CHARS['up_and_right']) .. "lr" .. CHARS["horizontal"])
+            elseif STATE['last_last_row'] == row - 1 and STATE['last_col'] == col + 1 then
                 -- If we came from the top and moved left
-                vim.cmd("normal! lr" .. CHARS["up_and_left"] .. "hr" .. CHARS["horizontal"])
+                vim.cmd("normal! lr" .. char_to_insert(row, col + 1, CHARS['up_and_left']) .. "hr" .. CHARS["horizontal"])
             end
         end
 
@@ -102,9 +193,11 @@ local function artist_drag()
     STATE['last_col'] = col
 end
 
+
 local function artist_click(char)
     if char == nil then char = CHARS["horizontal"] end
     local row, col = current_cursor_pos()
+
     STATE['last_last_row'] = row
     STATE['last_last_col'] = col
     STATE['last_row'] = row
@@ -148,7 +241,27 @@ local function artist_toggle()
 
 end
 
+local function artist_use_char_set(char_set_type)
+    if char_set_type == 'light' then
+        set_chars_to_light_square(CHARS)
+    elseif char_set_type == 'arc' then
+        set_chars_to_light_arc(CHARS)
+    elseif char_set_type == 'heavy' then
+        set_chars_to_heavy_square(CHARS)
+    else
+        set_chars_to_light_square(CHARS)
+    end
+end
+
+local function artist_init()
+    artist_use_char_set()
+end
+
+artist_init()
+
 return {
+    artist_init = artist_init,
+    artist_use_char_set = artist_use_char_set,
     artist_toggle = artist_toggle,
     artist_on = artist_on,
     artist_off = artist_off,
